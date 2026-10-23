@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Vessel Detection | Oct 2026</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* Base Tactical Theme Variables */
+        :root {
+            --bg-base: #18181b; /* Professional Dark Gray */
+            --bg-surface: #27272a; /* Lighter Dark Gray */
+            --accent: #64748b; /* Muted Slate / Steel Blue */
+            --danger: #b91c1c; /* Subdued Tactical Red */
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --border-color: rgba(255, 255, 255, 0.15);
+            --nav-height: 60px;
+        }
+
+        /* STRICT OVERRIDE: Zero rounded corners anywhere */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            border-radius: 0 !important; 
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* Lock body scrolling, let tabs handle it */
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            letter-spacing: -0.01em;
+        }
+
+        /* Top Navigation Menu */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            height: var(--nav-height);
+            background-color: var(--bg-base);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end; 
+            z-index: 2000;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom: 3px solid var(--accent);
+        }
+
+        /* Main Container */
+        main {
+            height: calc(100vh - var(--nav-height));
+            margin-top: var(--nav-height);
+        }
+
+        .tab-pane {
+            display: none;
+            height: 100%;
+            width: 100%;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-pane.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* -------------------------------------------
+           TAB 1: Scrollytelling (Scroll Snapping)
+        ------------------------------------------- */
+        #tab-overview {
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
+
+        .slide {
+            /* CHANGED: Replaced height: 100% with strict viewport calculation */
+            height: calc(100vh - var(--nav-height));
+            
+            width: 100%;
+            scroll-snap-align: start;
+            scroll-snap-stop: always;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-bottom: 0px solid var(--border-color);
+        }
+
+        #slide-1 {
+            background-color: #18181b;
+            background-image: 
+                radial-gradient(circle at center, transparent 30%, #18181b 95%),
+                linear-gradient(rgba(100, 116, 139, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 116, 139, 0.15) 1px, transparent 1px),
+                linear-gradient(rgba(100, 116, 139, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 116, 139, 0.05) 1px, transparent 1px);
+            background-size: 100% 100%, 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+            background-position: center center;
+        }
+
+        /* Background Images */
+        .slide-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+            opacity: 0.9;
+        }
+
+        /* Intelligence Text Box */
+        .intel-box-left, .intel-box-right, .intel-box {
+            position: relative;
+            z-index: 10;
+            background: rgba(39, 39, 42, 0.95);
+            padding: 3rem;
+            max-width: 600px;
+            text-align: left;
+        }
+
+        .intel-box-left {
+            border-left: 4px solid var(--accent);
+            margin-right: auto;
+            margin-left: 5%;
+        }
+
+        .intel-box-right {
+            border-right: 4px solid var(--accent);
+            margin-left: auto;
+            margin-right: 5%;
+        }
+
+        .intel-box {
+            border-left: 4px solid var(--accent);
+            margin: 0 auto;
+        }
+        
+        .slide-center {
+            text-align: center;
+            margin: 0 auto;
+            max-width: 800px;
+            border-left: 1px solid var(--border-color);
+            border-top: 4px solid var(--accent);
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--text-main);
+        }
+
+        h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #d1d1d1;
+            letter-spacing: 1px;
+        }
+
+        p {
+            font-size: large;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .mono-sub {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Scroll Down Indicator */
+        .scroll-indicator {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-muted);
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .scroll-indicator::after {
+            content: '';
+            width: 1px;
+            height: 30px;
+            background-color: var(--accent);
+            margin-top: 10px;
+        }
+
+        /* Fixed Backgrounds */
+        .bg-orto-fixed {
+            background-image: url('static/orto_alboran.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            box-shadow: inset 0 0 0 1000px rgba(24, 24, 27, 0.4); 
+        }
+
+        /* -------------------------------------------
+           Slide Group: Wiping Backgrounds (Slide 3)
+        ------------------------------------------- */
+        .slide-group {
+            position: relative;
+            width: 100%;
+        }
+
+        .sticky-text-layer {
+            position: sticky;
+            top: 0;
+            height: calc(100vh - var(--nav-height));
+            width: 100%;
+            z-index: 10;
+            pointer-events: none; 
+            display: flex;
+            align-items: center;
+            
+            /* REMOVE the margin-bottom from this class entirely */
+        }
+
+        /* ADD this new rule specifically for the first optical background */
+        #slide-3a {
+            /* Pulls the background up to overlap perfectly underneath the sticky text */
+            margin-top: calc(-100vh + var(--nav-height));
+        }
+
+        .sticky-text-layer .intel-box-right {
+            pointer-events: auto;
+            margin-left: auto;
+            margin-right: 5%;
+        }
+
+        .bg-optical {
+            background-image: url('static/orto_c0_r1.jpg');
+            background-size: cover;
+            background-position: center 80%;
+            background-repeat: no-repeat;
+        }
+
+        .bg-sar {
+            /* Converted from .tiff for web compatibility */
+            background-image: url('static/tile_c0_r1_2026-10-15.jpg');
+            background-size: cover;
+            background-position: center 80%;
+            background-repeat: no-repeat;
+        }
+
+        /* -------------------------------------------
+           Interactive Map Slide (Slide 5)
+        ------------------------------------------- */
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: var(--bg-base);
+        }
+
+        .leaflet-container, .leaflet-popup-content-wrapper, .leaflet-control {
+            border-radius: 0 !important;
+        }
+
+        .target-matched {
+            width: 8px;
+            height: 8px;
+            background-color: #3b9835;
+            border: 1px solid #3b9835;
+        }
+
+        .target-dark {
+            width: 10px;
+            height: 10px;
+            background-color: var(--danger);
+            border: 1px solid var(--text-main);
+            animation: sharp-pulse 1.5s infinite;
+        }
+
+        @keyframes sharp-pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.8); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* -------------------------------------------
+           Stats Slide (Slide 6)
+        ------------------------------------------- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .stat-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+        }
+        
+        .stat-card::before, .stat-card::after {
+            content: '';
+            position: absolute;
+            width: 10px; height: 10px;
+            border: 2px solid var(--accent);
+        }
+        .stat-card::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+        .stat-card::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+        .stat-card.alert-card::before, .stat-card.alert-card::after {
+            border-color: var(--danger);
+        }
+
+        .stat-num {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-num.highlight {
+            color: var(--danger);
+        }
+
+        .stat-label {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+        }
+
+        /* -------------------------------------------
+           TAB 2 & 3: Standard Pages
+        ------------------------------------------- */
+        #tab-methodology, #tab-projects {
+            overflow-y: auto;
+            padding: 4rem 10%;
+        }
+
+        .standard-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .code-block {
+            background: var(--bg-base);
+            border: 1px solid var(--border-color);
+            border-left: 2px solid var(--text-muted);
+            padding: 1rem;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-main);
+            margin-top: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Custom styling for Leaflet Zoom Controls */
+        .leaflet-control-zoom {
+            border: 1px solid var(--border-color) !important;
+            border-radius: 0 !important;
+            background-color: var(--bg-surface) !important;
+            box-shadow: none !important;
+        }
+
+        .leaflet-control-zoom a {
+            background-color: var(--bg-surface) !important;
+            color: var(--text-main) !important;
+            border-bottom: 1px solid var(--border-color) !important;
+            border-radius: 0 !important;
+            font-family: 'Roboto Mono', monospace !important;
+            font-weight: bold;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background-color: var(--bg-base) !important;
+            color: var(--accent) !important;
+        }
+
+        .leaflet-control-zoom-in {
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+        }
+
+        .leaflet-control-zoom-out {
+            border-bottom-left-radius: 0 !important;
+            border-bottom-right-radius: 0 !important;
+        }
+
+        .site-footer {
+            text-align: center;
+            padding: 2rem 0;
+            margin-top: 4rem;
+            border-top: 1px solid var(--border-color);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Permanent Top Navigation -->
+    <nav>
+        <div class="nav-tabs">
+            <button class="tab-btn active" onclick="switchTab('tab-overview', this)">Project Overview</button>
+            <button class="tab-btn" onclick="switchTab('tab-projects', this)">More Projects</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- ==========================================
+             TAB 1: Project Overview (Scrollytelling)
+        ========================================== -->
+        <section id="tab-overview" class="tab-pane active">
+            
+            <!-- SLIDE 1: Title Page -->
+            <div class="slide bg-orto-fixed">
+                <div class="intel-box-left slide-center">
+                    <p class="mono-sub">OCTOBER 2026</p>
+                    <h1>Dark Vessel Detection</h1>
+                    <p style="font-size: 1.2rem; color: var(--accent); font-family: 'Roboto Mono', monospace;">ALBORAN SEA</p>
+                    <p style="margin-top: 2rem;">Leveraging Orbital Radar & Automatic Identification System (AIS) to<br>isolate potential dark vessels in the Alboran Sea.</p>
+                </div>
+                <div class="scroll-indicator">Scroll</div>
+            </div>
+
+            <!-- SLIDE 2: Alboran Sea Orthophoto -->
+            <div class="slide bg-orto-fixed">
+                <div class="intel-box-right">
+                    <h2>The Chokepoint</h2>
+                    <p>The Alboran Sea serves as the primary maritime gateway connecting the Mediterranean to the Atlantic. Every day, thousands of vessels navigate these narrow corridors, representing billions in global trade.</p>
+                    <p>Beneath the surface of legitimate commerce, a shadow economy operates. Illicit fishing fleets, unauthorized transshipments, and sanctioned vessels mask their movements by disabling their AIS transponders.</p>
+                </div>
+                <div class="scroll-indicator">Scroll</div>
+            </div>
+
+            <!-- SLIDE 3 GROUP: Static Text, Wiping Backgrounds -->
+            <div class="slide-group">
+                <!-- The Sticky Text Layer -->
+                <div class="sticky-text-layer">
+                    <div class="intel-box-right">
+                        <h2>Orbital Radar (SAR)</h2>
+                        <p>To detect the vessels involved in illegal activities, we rely on physical radar returns rather than voluntary electronic broadcasts.</p>
+                        <p>ESA Sentinel-1 acquisitions (Oct 15–17, 2026) were tiled across the Alboran Sea. Active radar pierces cloud cover and total darkness, bouncing microwaves directly off metallic hulls to capture physical backscatter.</p>                    
+                    </div>
+                    <div class="scroll-indicator">Scroll</div>
+                </div>
+
+                <!-- Background 1: Optical -->
+                <div class="slide bg-optical" id="slide-3a"></div>
+
+                <!-- Background 2: SAR -->
+                <div class="slide bg-sar" id="slide-3b"></div>
+            </div>
+
+            <!-- SLIDE 4: YOLO Detections -->
+            <div class="slide">
+                <!-- Applied object-position directly to the image -->
+                <img src="static/ships_flag.jpg" alt="YOLO Detections" class="slide-bg" style="object-position: center 80%;">
+                
+                <div class="intel-box-right">
+                    <h2>Vessel Identification</h2>
+                    <p>The tiles were fed into a custom YOLOv8 neural network, specifically trained to identify ships in SAR imagery.</p>
+                    <p>The neural network isolated high-intensity vessel signatures against the ocean background. Using the geographic metadata embedded inside the satellite imagery, the exact pixel locations of these detections were mathematically converted into real-world GPS coordinates.</p>
+                </div>
+                <div class="scroll-indicator">Scroll</div>
+            </div>
+
+            <!-- SLIDE 5: The Map (AIS Fusion) -->
+            <div class="slide" id="map-slide">
+                <div id="map"></div>
+                <div class="intel-box" style="margin-left: 5%; margin-top: -20%;">
+                    <h2>Data Fusion Overlay</h2>
+                    <p>Physical radar coordinates are mathematically cross-referenced against historical AIS telemetry from the Global Fishing Watch database.</p>
+                    <p>Any physical target lacking an associated AIS broadcast within a 2.0 km radius is flagged as a potential dark vessel.</p>
+                    <div style="display: flex; gap: 1rem; align-items: center; margin-top: 1.5rem; font-family: 'Roboto Mono', monospace; font-size: 0.8rem;">
+                        <span style="display:inline-block; width:10px; height:10px; background:#3b9835"></span> VERIFIED AIS MATCH
+                        <span style="display:inline-block; width:10px; height:10px; background:var(--danger); border: 1px solid #fff; margin-left: 1rem;"></span> POTENTIAL DARK VESSEL
+                    </div>
+                </div>
+                <div class="scroll-indicator">Scroll</div>
+            </div>
+
+            <!-- SLIDE 6: Stats & Conclusion -->
+            <div class="slide">
+                <div class="intel-box slide-center" style="max-width: 900px; margin: 0 auto;">
+                    <h2>RESULTS</h2>
+                    <p class="mono-sub">ACQUISITION TIMEFRAME: OCT 15-17, 2026</p>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-num">116</div>
+                            <div class="stat-label">SHIPS DETECTED</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-num" style="color: var(--accent)">98</div>
+                            <div class="stat-label">VERIFIED TELEMETRY</div>
+                        </div>
+                        <div class="stat-card alert-card">
+                            <div class="stat-num highlight">18</div>
+                            <div class="stat-label">POTENTIAL DARK SHIPS</div>
+                        </div>
+                    </div>
+
+                    <p style="text-align: left;">By integrating orbital radar (SAR) with open-source telemetry (AIS), this pipeline successfully strips the anonymity from unauthorized vessels, providing a scalable, automated solution for maritime domain awareness.
+                        For the selected period of time, October 15–17, 2026, we identified 18 potential dark ships, which represents a 15.52% of the detected maritime traffic at this precise instant in time.
+                    </p>
+
+                    <p style="text-align: left;">This high anomaly rate underscores the critical necessity for non-cooperative surveillance in strategic chokepoints. With this architecture active, disabling a transponder no longer guarantees invisibility.</p>
+
+                    <footer class="site-footer" style="margin-top: 3rem; padding-bottom: 0;">
+                        &copy; 2026 Eric Gutiérrez.
+                    </footer>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ==========================================
+             TAB 3: More Projects
+        ========================================== -->
+        <section id="tab-projects" class="tab-pane">
+            <div class="standard-content intel-box" style="margin: 0 auto; max-width: 800px; border-top: 4px solid var(--accent); border-left: 1px solid var(--border-color);">
+                <h2>MORE PROJECTS</h2>
+                
+                <p style="margin-bottom: 2rem; margin-top: 1rem; font-size: 1.1rem;">
+                    To explore more projects across other domains visit my portfolio website, and my GitHub or LinkekdIn profiles.
+                </p>
+
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <!-- Primary Button: Personal Website -->
+                    <a href="https://ericgutierrezm.github.io/about_page/" target="_blank" style="color: var(--bg-base); background: var(--accent); padding: 0.5rem 1rem; text-decoration: none; font-weight: bold; border: 1px solid var(--accent); transition: opacity 0.2s;">
+                        PORTFOLIO WEBSITE
+                    </a>
+                    
+                    <!-- Secondary Button: GitHub -->
+                    <a href="https://github.com/ericGutierrezM" target="_blank" style="color: var(--text-main); background: transparent; padding: 0.5rem 1rem; text-decoration: none; border: 1px solid var(--border-color); transition: background 0.2s;">
+                        GITHUB
+                    </a>
+                    
+                    <!-- Secondary Button: LinkedIn -->
+                    <a href="https://www.linkedin.com/in/eric-gutierrez-moreno/" target="_blank" style="color: var(--text-main); background: transparent; padding: 0.5rem 1rem; text-decoration: none; border: 1px solid var(--border-color); transition: background 0.2s;">
+                        LINKEDIN
+                    </a>
+                </div>
+            </div>
+
+            <footer class="site-footer">
+                &copy; 2026 Eric Gutiérrez.
+            </footer>
+        </section>
+
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // --- 1. Tab Switching Logic ---
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-pane').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            btnElement.classList.add('active');
+
+            if(tabId === 'tab-overview' && typeof map !== 'undefined') {
+                setTimeout(() => { map.invalidateSize(); }, 100);
+            }
+        }
+
+        // --- 2. Leaflet Map Initialization ---
+        const map = L.map('map', {
+            zoomControl: false, 
+            scrollWheelZoom: false 
+        }).setView([36.7, -4.8], 8);
+
+        map.attributionControl.setPrefix('');
+
+        L.control.zoom({
+            position: 'topright'
+        }).addTo(map);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png?key=cb1_4ozl_1_6739c20d6ce845733ed8ea5a', {
+            attribution: '&copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 14
+        }).addTo(map);
+
+        map.createPane('matchedPane');
+        map.getPane('matchedPane').style.zIndex = 390;
+        map.createPane('darkPane');
+        map.getPane('darkPane').style.zIndex = 400;
+
+        const matchedIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: "<div class='target-matched'></div>",
+            iconSize: [8, 8],
+            iconAnchor: [4, 4]
+        });
+
+        const darkIcon = L.divIcon({
+            className: 'custom-div-icon',
+            html: "<div class='target-dark'></div>",
+            iconSize: [10, 10],
+            iconAnchor: [5, 5]
+        });
+
+        const matchedVessels = [
+            {lat: 36.158111, lon: -4.329111}, {lat: 36.328404, lon: -4.235942}, {lat: 36.109045, lon: -4.185827}, {lat: 36.052411, lon: -5.104643},
+            {lat: 35.981997, lon: -5.208087}, {lat: 36.062104, lon: -5.310059}, {lat: 35.995907, lon: -5.279527}, {lat: 35.975575, lon: -5.293998},
+            {lat: 35.9903, lon: -5.212048}, {lat: 36.043791, lon: -5.304488}, {lat: 36.033525, lon: -5.339545}, {lat: 36.012806, lon: -5.104479},
+            {lat: 36.005695, lon: -5.200775}, {lat: 35.970679, lon: -5.197538}, {lat: 35.981893, lon: -5.349031}, {lat: 35.892016, lon: -5.28749},
+            {lat: 36.509126, lon: -4.648179}, {lat: 36.321165, lon: -3.251266}, {lat: 36.332057, lon: -3.178957}, {lat: 36.15713, lon: -3.18545},
+            {lat: 36.151138, lon: -3.107631}, {lat: 36.273373, lon: -2.094275}, {lat: 36.290927, lon: -2.087656}, {lat: 36.171253, lon: -5.053467},
+            {lat: 36.21536, lon: -4.937567}, {lat: 36.178742, lon: -4.969678}, {lat: 36.22014, lon: -5.040091}, {lat: 36.244965, lon: -4.866396},
+            {lat: 36.14343, lon: -5.047161}, {lat: 36.197536, lon: -5.005538}, {lat: 36.237771, lon: -4.949421}, {lat: 35.831294, lon: -4.428385},
+            {lat: 36.194982, lon: -4.838063}, {lat: 36.265235, lon: -4.731891}, {lat: 36.256712, lon: -4.788966}, {lat: 36.298581, lon: -4.699319},
+            {lat: 36.10194, lon: -4.676195}, {lat: 36.308076, lon: -2.694884}, {lat: 36.286894, lon: -2.789969}, {lat: 36.274545, lon: -2.766822},
+            {lat: 36.569977, lon: -3.288753}, {lat: 35.794847, lon: -4.929913}, {lat: 35.835831, lon: -4.988038}, {lat: 35.777185, lon: -5.040728},
+            {lat: 35.795594, lon: -4.971625}, {lat: 36.22782, lon: -4.536445}, {lat: 36.109455, lon: -4.569417}, {lat: 36.181399, lon: -4.400221},
+            {lat: 36.128443, lon: -5.157857}, {lat: 36.11295, lon: -5.173872}, {lat: 36.146003, lon: -5.299002}, {lat: 36.138014, lon: -5.308342},
+            {lat: 36.139137, lon: -5.298091}, {lat: 36.144649, lon: -5.309889}, {lat: 36.122274, lon: -5.297783}, {lat: 36.120452, lon: -5.305447},
+            {lat: 36.130643, lon: -5.30508}, {lat: 36.091899, lon: -4.210201}, {lat: 36.347456, lon: -2.271776}, {lat: 35.680507, lon: -4.832924},
+            {lat: 35.780738, lon: -4.771454}, {lat: 36.67951, lon: -4.369802}, {lat: 36.72433, lon: -2.409507}, {lat: 36.161452, lon: -3.401926},
+            {lat: 36.267737, lon: -3.409844}, {lat: 36.039113, lon: -4.781178}, {lat: 36.070379, lon: -4.649323}, {lat: 36.037882, lon: -4.64159},
+            {lat: 36.027924, lon: -4.672189}, {lat: 36.088991, lon: -4.988676}, {lat: 36.068131, lon: -4.876594}, {lat: 36.007254, lon: -5.07252},
+            {lat: 36.029104, lon: -4.862856}, {lat: 36.075448, lon: -4.900431}, {lat: 35.992554, lon: -5.046314}, {lat: 36.034967, lon: -4.934285},
+            {lat: 35.888868, lon: -5.044627}, {lat: 35.900968, lon: -4.995631}, {lat: 36.01898, lon: -4.980147}, {lat: 35.945354, lon: -4.910277},
+            {lat: 36.067164, lon: -5.008232}, {lat: 36.042082, lon: -5.053428}, {lat: 35.974586, lon: -5.091384}, {lat: 36.086323, lon: -5.083859},
+            {lat: 36.05744, lon: -4.983203}, {lat: 35.893491, lon: -4.893132}, {lat: 35.974792, lon: -5.002078}, {lat: 36.078959, lon: -4.853441},
+            {lat: 35.873616, lon: -4.996124}, {lat: 36.063432, lon: -5.094358}, {lat: 36.070517, lon: -5.088615}, {lat: 36.099211, lon: -4.861538},
+            {lat: 36.063469, lon: -5.093855}, {lat: 36.540167, lon: -2.421497}, {lat: 36.335186, lon: -2.884283}, {lat: 36.188459, lon: -2.880734},
+            {lat: 36.29202, lon: -2.852694}, {lat: 36.470461, lon: -4.417047}
+        ];
+
+        const darkVessels = [
+            {lat: 36.733641, lon: -3.153809}, {lat: 35.778731, lon: -4.560567}, {lat: 36.092738, lon: -3.461605}, {lat: 35.826254, lon: -5.10642},
+            {lat: 36.317974, lon: -4.65046}, {lat: 35.847761, lon: -4.906895}, {lat: 36.71866, lon: -1.767879}, {lat: 36.692215, lon: -1.687332},
+            {lat: 36.51567, lon: -3.677442}, {lat: 36.74342, lon: -2.4756}, {lat: 35.68348, lon: -4.317594}, {lat: 35.798289, lon: -4.33266},
+            {lat: 36.410178, lon: -2.472425}, {lat: 36.553738, lon: -4.396239}, {lat: 36.454057, lon: -4.516642}, {lat: 36.444756, lon: -4.51885},
+            {lat: 36.456511, lon: -4.524278}, {lat: 36.595625, lon: -4.387359}
+        ];
+
+        matchedVessels.forEach(v => {
+            L.marker([v.lat, v.lon], { icon: matchedIcon, pane: 'matchedPane' }).addTo(map);
+        });
+
+        darkVessels.forEach(v => {
+            L.marker([v.lat, v.lon], { icon: darkIcon, pane: 'darkPane' }).addTo(map);
+        });
+
+        // --- 3. Intersection Observer (Fixes Leaflet load bug on scroll) ---
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    setTimeout(() => { map.invalidateSize(); }, 150);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        observer.observe(document.getElementById('map-slide'));
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,20 @@
+[project]
+name = "id-dark-ships"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "aiohttp>=3.14.5",
+    "copernicusapi>=0.1.3",
+    "geopandas>=1.2.0",
+    "ipykernel>=7.4.0",
+    "numpy>=2.5.4",
+    "opencv-python>=5.0.0.93",
+    "osmnx>=2.1.1",
+    "pandas>=3.0.6",
+    "rasterio>=1.5.2",
+    "requests>=2.34.2",
+    "streamlit>=1.66.0",
+    "ultralytics>=8.4.178",
+]

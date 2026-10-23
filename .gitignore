@@ -1,0 +1,6 @@
+confidential/
+data/shapefiles/
+data/sentinel1/
+src/Z_get-tile-background.py
+yolov8s.pt
+output/yolo/
